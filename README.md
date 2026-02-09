@@ -1,7 +1,7 @@
 # go-varlink
 
-[![GoDoc](https://godoc.org/snai.pe/boa?status.svg)](https://godoc.org/snai.pe/boa)
-[![GitHub](https://img.shields.io/github/license/Snaipe/boa?color=brightgreen)](LICENSE)
+[![GoDoc](https://godoc.org/snai.pe/go-varlink?status.svg)](https://godoc.org/snai.pe/go-varlink)
+[![GitHub](https://img.shields.io/github/license/Snaipe/go-varlink?color=brightgreen)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none!-brightgreen)](go.mod)
 
 go-varlink is pure-Go [Varlink][varlink] client and server implementation.
