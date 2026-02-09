@@ -17,8 +17,8 @@ import (
 
 //go:generate go run snai.pe/go-varlink/cmd/codegen org.varlink.service/service.varlink
 
-// Generate errors only to avoid import cycle
-//go:generate go run snai.pe/go-varlink/cmd/codegen -gen=errors -output=internal/service/service.go org.varlink.service/service.varlink
+// Generate subset to avoid import cycle
+//go:generate go run snai.pe/go-varlink/cmd/codegen -gen=types,errors,meta -output=internal/service/service.go org.varlink.service/service.varlink
 
 var (
 	ErrUnsupportedScheme = errors.New("unsupported scheme")

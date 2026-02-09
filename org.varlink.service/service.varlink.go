@@ -19,6 +19,8 @@ var _ = fmt.Errorf
 var _ = json.RawMessage(nil)
 var _ = context.Background
 
+type Error = varlink.Error
+
 // InterfaceName is the fully-qualified name of this varlink interface.
 const InterfaceName = `org.varlink.service`
 
@@ -224,7 +226,7 @@ type Client struct {
 
 // ErrorFromCode returns a new varlink error constructed from the specified
 // code and parameters.
-func ErrorFromCode(code string, params json.RawMessage) varlink.Error {
+func ErrorFromCode(code string, params json.RawMessage) Error {
 	switch code {
 	case `org.varlink.service.InterfaceNotFound`:
 		var err_ InterfaceNotFoundError
@@ -365,10 +367,10 @@ type Service interface {
 
 	// Get a list of all the interfaces a service provides and information
 	// about the implementation.
-	GetInfo(ctx context.Context) (vendor string, product string, version string, url string, interfaces []string, err_ varlink.Error)
+	GetInfo(ctx context.Context) (vendor string, product string, version string, url string, interfaces []string, err_ Error)
 
 	// Get the description of an interface that is implemented by this service.
-	GetInterfaceDescription(ctx context.Context, interface_ string) (description string, err_ varlink.Error)
+	GetInterfaceDescription(ctx context.Context, interface_ string) (description string, err_ Error)
 }
 
 // NewHandler creates a new method handler for the specified service implementation.
@@ -392,7 +394,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		validate := func() varlink.Error {
+		validate := func() Error {
 
 			return nil
 		}
@@ -401,7 +403,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		var err varlink.Error
+		var err Error
 		output.Vendor, output.Product, output.Version, output.Url, output.Interfaces, err = s.GetInfo(w.Context())
 		if err != nil {
 			w.WriteError(err)
@@ -421,7 +423,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		validate := func() varlink.Error {
+		validate := func() Error {
 
 			return nil
 		}
@@ -430,7 +432,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		var err varlink.Error
+		var err Error
 		output.Description, err = s.GetInterfaceDescription(w.Context(), input.Interface)
 		if err != nil {
 			w.WriteError(err)

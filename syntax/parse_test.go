@@ -138,4 +138,3 @@ func FuzzParser(f *testing.F) {
 		syntax.NewParser(bytes.NewReader(txt)).Parse()
 	})
 }
-

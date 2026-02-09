@@ -9,14 +9,106 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"snai.pe/go-varlink/syntax"
 )
 
 var _ = fmt.Errorf
 var _ = json.RawMessage(nil)
 var _ = context.Background
 
+type Error interface {
+	error
+	ErrorCode() string
+}
+
 // InterfaceName is the fully-qualified name of this varlink interface.
 const InterfaceName = `org.varlink.service`
+
+// Input parameters for GetInfo method.
+//
+// You shouldn't have to use this type directly; it is only useful if you
+// need to manually send method calls. Instead, use the methods of the
+// Client type.
+type GetInfoInput struct{}
+
+// Output parameters for GetInfo method.
+//
+// You shouldn't have to use this type directly; it is only useful if you
+// need to manually send method calls. Instead, use the methods of the
+// Client type.
+type GetInfoOutput struct {
+	Vendor     string   `json:"vendor"`
+	Product    string   `json:"product"`
+	Version    string   `json:"version"`
+	Url        string   `json:"url"`
+	Interfaces []string `json:"interfaces"`
+}
+
+// Pack fills in the fields of GetInfoOutput from a
+// parameter list.
+func (output_ *GetInfoOutput) Pack(vendor string, product string, version string, url string, interfaces []string) {
+	output_.Vendor = vendor
+	output_.Product = product
+	output_.Version = version
+	output_.Url = url
+	output_.Interfaces = interfaces
+}
+
+// Unpack unpacks the fields of GetInfoInput to a
+// parameter list.
+func (output_ *GetInfoOutput) Unpack() (vendor string, product string, version string, url string, interfaces []string) {
+	vendor = output_.Vendor
+	product = output_.Product
+	version = output_.Version
+	url = output_.Url
+	interfaces = output_.Interfaces
+	return
+}
+
+// Input parameters for GetInterfaceDescription method.
+//
+// You shouldn't have to use this type directly; it is only useful if you
+// need to manually send method calls. Instead, use the methods of the
+// Client type.
+type GetInterfaceDescriptionInput struct {
+	Interface string `json:"interface"`
+}
+
+// Pack fills in the fields of GetInterfaceDescriptionInput from a
+// parameter list.
+func (input_ *GetInterfaceDescriptionInput) Pack(interface_ string) {
+	input_.Interface = interface_
+}
+
+// Unpack unpacks the fields of GetInterfaceDescriptionInput to a
+// parameter list.
+func (input_ *GetInterfaceDescriptionInput) Unpack() (interface_ string) {
+	interface_ = input_.Interface
+	return
+}
+
+// Output parameters for GetInterfaceDescription method.
+//
+// You shouldn't have to use this type directly; it is only useful if you
+// need to manually send method calls. Instead, use the methods of the
+// Client type.
+type GetInterfaceDescriptionOutput struct {
+	Description string `json:"description"`
+}
+
+// Pack fills in the fields of GetInterfaceDescriptionOutput from a
+// parameter list.
+func (output_ *GetInterfaceDescriptionOutput) Pack(description string) {
+	output_.Description = description
+}
+
+// Unpack unpacks the fields of GetInterfaceDescriptionInput to a
+// parameter list.
+func (output_ *GetInterfaceDescriptionOutput) Unpack() (description string) {
+	description = output_.Description
+	return
+}
 
 // The requested interface was not found.
 type InterfaceNotFoundError struct {
@@ -126,3 +218,44 @@ func ExpectedMore() ExpectedMoreError {
 	var err_ ExpectedMoreError
 	return err_
 }
+
+// Definition contains the definition of the varlink interface which was parsed from its description.
+var Definition = syntax.InterfaceDef{Node: syntax.Node{Position: syntax.Cursor{Line: 3, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# The Varlink Service Interface is provided by every varlink service. It\n", Value: "The Varlink Service Interface is provided by every varlink service. It", Start: syntax.Cursor{Line: 1, Column: 1}, End: syntax.Cursor{Line: 1, Column: 73}}, syntax.Token{Type: "<comment>", Raw: "# describes the service and the interfaces it implements.\n", Value: "describes the service and the interfaces it implements.", Start: syntax.Cursor{Line: 2, Column: 1}, End: syntax.Cursor{Line: 2, Column: 58}}}}, Name: "org.varlink.service", Types: []syntax.TypeDef(nil), Methods: []syntax.MethodDef{syntax.MethodDef{Node: syntax.Node{Position: syntax.Cursor{Line: 7, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# Get a list of all the interfaces a service provides and information\n", Value: "Get a list of all the interfaces a service provides and information", Start: syntax.Cursor{Line: 5, Column: 1}, End: syntax.Cursor{Line: 5, Column: 70}}, syntax.Token{Type: "<comment>", Raw: "# about the implementation.\n", Value: "about the implementation.", Start: syntax.Cursor{Line: 6, Column: 1}, End: syntax.Cursor{Line: 6, Column: 28}}}}, Name: "GetInfo", Input: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 7, Column: 15}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField(nil)}, Output: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 7, Column: 21}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 8, Column: 3}, Comments: []syntax.Token(nil)}, Name: "vendor", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 8, Column: 11}, Comments: []syntax.Token(nil)}, Name: "string"}}, syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 9, Column: 3}, Comments: []syntax.Token(nil)}, Name: "product", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 9, Column: 12}, Comments: []syntax.Token(nil)}, Name: "string"}}, syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 10, Column: 3}, Comments: []syntax.Token(nil)}, Name: "version", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 10, Column: 12}, Comments: []syntax.Token(nil)}, Name: "string"}}, syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 11, Column: 3}, Comments: []syntax.Token(nil)}, Name: "url", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 11, Column: 8}, Comments: []syntax.Token(nil)}, Name: "string"}}, syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 12, Column: 3}, Comments: []syntax.Token(nil)}, Name: "interfaces", Type: syntax.ArrayType{Node: syntax.Node{Position: syntax.Cursor{Line: 12, Column: 15}, Comments: []syntax.Token(nil)}, ElemType: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 12, Column: 17}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}}, syntax.MethodDef{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# Get the description of an interface that is implemented by this service.\n", Value: "Get the description of an interface that is implemented by this service.", Start: syntax.Cursor{Line: 15, Column: 1}, End: syntax.Cursor{Line: 15, Column: 75}}}}, Name: "GetInterfaceDescription", Input: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 31}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 32}, Comments: []syntax.Token(nil)}, Name: "interface", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 43}, Comments: []syntax.Token(nil)}, Name: "string"}}}}, Output: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 54}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 55}, Comments: []syntax.Token(nil)}, Name: "description", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 16, Column: 68}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}}, Errors: []syntax.ErrorDef{syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 19, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# The requested interface was not found.\n", Value: "The requested interface was not found.", Start: syntax.Cursor{Line: 18, Column: 1}, End: syntax.Cursor{Line: 18, Column: 41}}}}, Name: "InterfaceNotFound", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 19, Column: 25}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 19, Column: 26}, Comments: []syntax.Token(nil)}, Name: "interface", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 19, Column: 37}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}, syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 22, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# The requested method was not found\n", Value: "The requested method was not found", Start: syntax.Cursor{Line: 21, Column: 1}, End: syntax.Cursor{Line: 21, Column: 37}}}}, Name: "MethodNotFound", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 22, Column: 22}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 22, Column: 23}, Comments: []syntax.Token(nil)}, Name: "method", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 22, Column: 31}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}, syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 26, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# The interface defines the requested method, but the service does not\n", Value: "The interface defines the requested method, but the service does not", Start: syntax.Cursor{Line: 24, Column: 1}, End: syntax.Cursor{Line: 24, Column: 71}}, syntax.Token{Type: "<comment>", Raw: "# implement it.\n", Value: "implement it.", Start: syntax.Cursor{Line: 25, Column: 1}, End: syntax.Cursor{Line: 25, Column: 16}}}}, Name: "MethodNotImplemented", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 26, Column: 28}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 26, Column: 29}, Comments: []syntax.Token(nil)}, Name: "method", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 26, Column: 37}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}, syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 29, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# One of the passed parameters is invalid.\n", Value: "One of the passed parameters is invalid.", Start: syntax.Cursor{Line: 28, Column: 1}, End: syntax.Cursor{Line: 28, Column: 43}}}}, Name: "InvalidParameter", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 29, Column: 24}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField{syntax.StructField{Node: syntax.Node{Position: syntax.Cursor{Line: 29, Column: 25}, Comments: []syntax.Token(nil)}, Name: "parameter", Type: syntax.BuiltinType{Node: syntax.Node{Position: syntax.Cursor{Line: 29, Column: 36}, Comments: []syntax.Token(nil)}, Name: "string"}}}}}, syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 32, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# Client is denied access\n", Value: "Client is denied access", Start: syntax.Cursor{Line: 31, Column: 1}, End: syntax.Cursor{Line: 31, Column: 26}}}}, Name: "PermissionDenied", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 32, Column: 24}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField(nil)}}, syntax.ErrorDef{Node: syntax.Node{Position: syntax.Cursor{Line: 35, Column: 1}, Comments: []syntax.Token{syntax.Token{Type: "<comment>", Raw: "# Method is expected to be called with 'more' set to true, but wasn't\n", Value: "Method is expected to be called with 'more' set to true, but wasn't", Start: syntax.Cursor{Line: 34, Column: 1}, End: syntax.Cursor{Line: 34, Column: 70}}}}, Name: "ExpectedMore", Params: syntax.Struct{Node: syntax.Node{Position: syntax.Cursor{Line: 35, Column: 20}, Comments: []syntax.Token(nil)}, Fields: []syntax.StructField(nil)}}}}
+
+// Description contains the description of the varlink interface, expressed in the IDL.
+var Description = `# The Varlink Service Interface is provided by every varlink service. It
+# describes the service and the interfaces it implements.
+interface org.varlink.service
+
+# Get a list of all the interfaces a service provides and information
+# about the implementation.
+method GetInfo() -> (
+  vendor: string,
+  product: string,
+  version: string,
+  url: string,
+  interfaces: []string
+)
+
+# Get the description of an interface that is implemented by this service.
+method GetInterfaceDescription(interface: string) -> (description: string)
+
+# The requested interface was not found.
+error InterfaceNotFound (interface: string)
+
+# The requested method was not found
+error MethodNotFound (method: string)
+
+# The interface defines the requested method, but the service does not
+# implement it.
+error MethodNotImplemented (method: string)
+
+# One of the passed parameters is invalid.
+error InvalidParameter (parameter: string)
+
+# Client is denied access
+error PermissionDenied ()
+
+# Method is expected to be called with 'more' set to true, but wasn't
+error ExpectedMore ()
+`
