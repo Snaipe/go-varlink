@@ -47,7 +47,7 @@ if err := rs.Error(); err != nil {
 
 To write a service, you can start a server with your own method handler:
 
-```
+```go
 import (
     "snai.pe/go-varlink/org.varlink.service" // for error types
 )
