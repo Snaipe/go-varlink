@@ -1,0 +1,115 @@
+{{/* Copyright 2026 Franklin "Snaipe" Mathieu.
+
+ Use of this source code is governed by the MIT license that can be
+ found in the LICENSE file. */-}}
+
+{{- define "comments" }}
+{{- with .Comments }}
+{{ range . }}
+{{- `//` }} {{ .Value }}
+{{ end -}}
+{{- end }}
+{{- end }}
+
+{{- define "type" -}}
+{{- with enum . -}}
+string
+{{- else with struct . -}}
+struct {
+{{- range .Fields -}}
+{{ template "comments" . -}}
+{{ pascalCase .Name }} {{ template "type" .Type }} `json:"{{ .Name }}{{ with nullable .Type }},omitempty{{ end }}"`
+{{ end -}}
+}
+{{- else with array . -}}
+[]{{ template "type" .ElemType }}
+{{- else with dict . -}}
+map[string]{{ template "type" .ElemType }}
+{{- else with nullable . -}}
+*{{ template "type" .Type }}
+{{- else with builtin . -}}
+{{ .Name }}
+{{- else with named . -}}
+{{ .Name }}
+{{- else -}}
+{{ errorf "unknown type" }}
+{{- end -}}
+{{- end }}
+
+{{- define "args" -}}
+{{- with struct . -}}
+{{- range $i, $f := .Fields }}
+{{- if $i -}}, {{ end }}{{ escapekw (camelCase $f.Name) }} {{ template "type" .Type }}
+{{- end -}}
+{{- else -}}
+{{ errorf "expected struct for args template" }}
+{{- end -}}
+{{- end }}
+
+{{- define "callargs" -}}
+{{- with struct . -}}
+{{- range $i, $f := .Fields }}
+{{- if $i -}}, {{ end }}{{ escapekw (camelCase $f.Name) }}
+{{- end -}}
+{{- else -}}
+{{ errorf "expected struct for callargs template" }}
+{{- end -}}
+{{- end }}
+
+{{- define "fields" -}}
+{{- $var := (index . 1) }}
+{{- with struct (index . 0) -}}
+{{- range $i, $f := .Fields }}
+{{- if $i -}}, {{ end }}{{ $var }}.{{ pascalCase $f.Name }}
+{{- end -}}
+{{- else -}}
+{{ errorf "expected struct for fields template" }}
+{{- end -}}
+{{- end }}
+
+{{- define "validate" -}}
+{{- $var := (index . 0) }}
+{{- $key := (index . 1) }}
+{{- $typ := (index . 2) }}
+{{- with enum $typ -}}
+switch {{ $var }} {
+{{- range .Values }}
+case `{{ .Name }}`:
+{{- end }}
+default:
+	return varlink.NewError("org.varlink.service.InvalidParameter", "parameter", "{{ $key }}")
+}
+{{- else with struct $typ -}}
+{{- range .Fields -}}
+{{ include "validate" (join "." $var (pascalCase .Name)) (join "." $key .Name) .Type }}
+{{ end -}}
+{{- else with array $typ -}}
+{{- with trim (include "validate" "e" (concat $key "[*]") .ElemType) }}
+for _, e := range {{ $var }} {
+	{{ . }}
+}
+{{- end }}
+{{- else with dict $typ -}}
+{{- with trim (include "validate" "e" (concat $key "[*]") .ElemType) }}
+for _, e := range {{ $var }} {
+	{{ . }}
+}
+{{- end }}
+{{- else with nullable $typ -}}
+{{- with trim (include "validate" (concat "(*" $var ")") $key .Type) }}
+if {{ $var }} != nil {
+	{{ . }}
+}
+{{- end }}
+{{- else with builtin $typ -}}
+{{/* OK */}}
+{{- else with named $typ -}}
+if v, ok := any({{ $var }}).(interface{ Validate() varlink.Error }); ok {
+	if err := v.Validate(); err != nil {
+		return err
+	}
+}
+{{- else -}}
+{{ errorf "unknown type" }}
+{{- end -}}
+{{- end }}
