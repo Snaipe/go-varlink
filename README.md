@@ -127,3 +127,5 @@ corresponding to this interface.
 
 The code generator can be configured; see `go run snai.pe/go-varlink/cmd/codegen -h`
 for more information.
+
+[varlink]: https://varlink.org
