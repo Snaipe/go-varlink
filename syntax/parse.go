@@ -351,7 +351,17 @@ func (p *Parser) ElementType() Type {
 		return typ
 
 	default:
-		panic("unknown token")
+		p.error(token, UnexpectedTokenError{
+			TokenTypeBool,
+			TokenTypeInt,
+			TokenTypeString,
+			TokenTypeFloat,
+			TokenTypeObject,
+			TokenTypeAny,
+			TokenLParen,
+			TokenName,
+		})
+		panic("unreachable")
 	}
 }
 

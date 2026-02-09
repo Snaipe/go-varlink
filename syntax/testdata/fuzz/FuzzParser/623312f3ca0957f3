@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("interface A.0\ntype A")
