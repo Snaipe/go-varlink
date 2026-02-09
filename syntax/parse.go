@@ -9,140 +9,30 @@ import (
 	"io"
 )
 
-// NodeBase represents a node in a parse tree.
-type Node struct {
-	// The starting position of the node in the file (ignoring comments and whitespace)
-	Position Cursor
-
-	// Any comments attached to this node
-	Comments []Token
-}
-
-type InterfaceDef struct {
-	Node
-
-	Name string
-
-	Types []TypeDef
-
-	Methods []MethodDef
-
-	Errors []ErrorDef
-}
-
-type TypeDef struct {
-	Node
-
-	Name string
-
-	Type Type
-}
-
-type Type interface {
-	isType()
-}
-
-type Struct struct {
-	Node
-
-	Fields []StructField
-}
-
-func (Struct) isType() {}
-
-type StructField struct {
-	Node
-
-	Name string
-
-	Type Type
-}
-
-type Enum struct {
-	Node
-
-	Values []EnumValue
-}
-
-type EnumValue struct {
-	Node
-
-	Name string
-}
-
-func (Enum) isType() {}
-
-type BuiltinType struct {
-	Node
-
-	Name string
-}
-
-func (BuiltinType) isType() {}
-
-type NamedType struct {
-	Node
-
-	Name string
-}
-
-func (NamedType) isType() {}
-
-type ArrayType struct {
-	Node
-
-	ElemType Type
-}
-
-func (ArrayType) isType() {}
-
-type DictType struct {
-	Node
-
-	ElemType Type
-}
-
-func (DictType) isType() {}
-
-type NullableType struct {
-	Node
-
-	Type Type
-}
-
-func (NullableType) isType() {}
-
-type MethodDef struct {
-	Node
-
-	Name string
-
-	Input Struct
-
-	Output Struct
-}
-
-type ErrorDef struct {
-	Node
-
-	Name string
-
-	Params Struct
-}
-
+// Parser is the parser for the Varlink Interface Definition Language.
 type Parser struct {
-	lexer *Lexer
-	prev  []Token
+	p parser
 }
 
+// NewParser creates a parser that will parse content from the in Reader.
 func NewParser(in io.Reader) *Parser {
 	p := Parser{
-		lexer: NewLexer(in),
+		p: parser{lexer: NewLexer(in)},
 	}
 	return &p
 }
 
-func (p *Parser) Next() (token Token) {
+// Parse parses the input and returns the parsed interface definition.
+func (p *Parser) Parse() (intf InterfaceDef, err error) {
+	return p.p.Parse()
+}
+
+type parser struct {
+	lexer *Lexer
+	prev  []Token
+}
+
+func (p *parser) Next() (token Token) {
 	for {
 		if len(p.prev) > 0 {
 			last := len(p.prev) - 1
@@ -160,19 +50,19 @@ func (p *Parser) Next() (token Token) {
 	}
 }
 
-func (p *Parser) Back(tokens ...Token) {
+func (p *parser) Back(tokens ...Token) {
 	for i := range len(tokens) {
 		p.prev = append(p.prev, tokens[len(tokens)-i-1])
 	}
 }
 
-func (p *Parser) Peek() (token Token) {
+func (p *parser) Peek() (token Token) {
 	token = p.Next()
 	p.Back(token)
 	return
 }
 
-func (p *Parser) Accept(expect ...TokenType) (token Token) {
+func (p *parser) Accept(expect ...TokenType) (token Token) {
 	token = p.Next()
 	for _, typ := range expect {
 		if token.Type == typ {
@@ -183,7 +73,7 @@ func (p *Parser) Accept(expect ...TokenType) (token Token) {
 	panic("unreachable")
 }
 
-func (p *Parser) error(token Token, err error) {
+func (p *parser) error(token Token, err error) {
 	if token.Type == TokenError {
 		panic(token.Value.(*Error))
 	}
@@ -191,7 +81,7 @@ func (p *Parser) error(token Token, err error) {
 	panic(&Error{Cursor: token.Start, Err: err})
 }
 
-func (p *Parser) Parse() (intf InterfaceDef, err error) {
+func (p *parser) Parse() (intf InterfaceDef, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if ee, ok := e.(*Error); ok {
@@ -244,7 +134,7 @@ func (p *Parser) Parse() (intf InterfaceDef, err error) {
 	}
 }
 
-func (p *Parser) Comments() (comments []Token) {
+func (p *parser) Comments() (comments []Token) {
 	for {
 		switch token := p.Next(); token.Type {
 		case TokenComment:
@@ -260,7 +150,7 @@ func (p *Parser) Comments() (comments []Token) {
 	}
 }
 
-func (p *Parser) TypeDef() (typedef TypeDef) {
+func (p *parser) TypeDef() (typedef TypeDef) {
 	token := p.Accept(TokenTypeDef)
 	typedef.Position = token.Start
 
@@ -271,7 +161,7 @@ func (p *Parser) TypeDef() (typedef TypeDef) {
 	return
 }
 
-func (p *Parser) Type() Type {
+func (p *parser) Type() Type {
 	switch token := p.Next(); token.Type {
 	case TokenOption:
 		typ := NullableType{Type: p.Type()}
@@ -283,7 +173,7 @@ func (p *Parser) Type() Type {
 	}
 }
 
-func (p *Parser) NonNullableType() Type {
+func (p *parser) NonNullableType() Type {
 	switch token := p.Next(); token.Type {
 	case TokenArray:
 		typ := ArrayType{ElemType: p.Type()}
@@ -299,7 +189,7 @@ func (p *Parser) NonNullableType() Type {
 	}
 }
 
-func (p *Parser) ElementType() Type {
+func (p *parser) ElementType() Type {
 	switch token := p.Next(); token.Type {
 
 	case TokenTypeBool, TokenTypeInt, TokenTypeString:
@@ -328,7 +218,7 @@ func (p *Parser) ElementType() Type {
 			p.Back(firstnameOrRparen)
 			p.Back(comments...)
 			p.Back(token)
-			return p.Struct()
+			return p.StructType()
 		}
 
 		commaOrColon := p.Accept(TokenColon, TokenComma)
@@ -338,9 +228,9 @@ func (p *Parser) ElementType() Type {
 
 		switch commaOrColon.Type {
 		case TokenColon:
-			return p.Struct()
+			return p.StructType()
 		case TokenComma:
-			return p.Enum()
+			return p.EnumType()
 		default:
 			panic("unreachable")
 		}
@@ -365,7 +255,7 @@ func (p *Parser) ElementType() Type {
 	}
 }
 
-func (p *Parser) Enum() (e Enum) {
+func (p *parser) EnumType() (e EnumType) {
 	p.lexer.CoerceIdentifierType = TokenFieldName
 	defer func() { p.lexer.CoerceIdentifierType = TokenEOF }()
 
@@ -426,7 +316,7 @@ func (p *Parser) Enum() (e Enum) {
 	}
 }
 
-func (p *Parser) Struct() (s Struct) {
+func (p *parser) StructType() (s StructType) {
 	start := p.Accept(TokenLParen)
 	s.Position = start.Start
 
@@ -491,7 +381,7 @@ func (p *Parser) Struct() (s Struct) {
 	}
 }
 
-func (p *Parser) MethodDef() (method MethodDef) {
+func (p *parser) MethodDef() (method MethodDef) {
 	token := p.Accept(TokenMethodDef)
 	method.Position = token.Start
 
@@ -500,21 +390,21 @@ func (p *Parser) MethodDef() (method MethodDef) {
 	method.Name = name.Value.(string)
 	p.lexer.CoerceIdentifierType = TokenEOF
 
-	method.Input = p.Struct()
+	method.Input = p.StructType()
 
 	p.Accept(TokenArrow)
 
-	method.Output = p.Struct()
+	method.Output = p.StructType()
 	return
 }
 
-func (p *Parser) ErrorDef() (err ErrorDef) {
+func (p *parser) ErrorDef() (err ErrorDef) {
 	token := p.Accept(TokenErrorDef)
 	err.Position = token.Start
 
 	name := p.Accept(TokenName)
 	err.Name = name.Value.(string)
 
-	err.Params = p.Struct()
+	err.Params = p.StructType()
 	return
 }

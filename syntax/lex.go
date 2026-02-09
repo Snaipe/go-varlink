@@ -21,6 +21,7 @@ type Cursor struct {
 	Line, Column int
 }
 
+// Token represents a token in the lexer stream.
 type Token struct {
 	// The type of this token.
 	Type TokenType
@@ -48,6 +49,7 @@ func (tok *Token) IsAny(types ...TokenType) bool {
 	return false
 }
 
+// TokenType is the type of a token.
 type TokenType string
 
 const (
@@ -56,7 +58,6 @@ const (
 	TokenNewline       TokenType = "<newline>"
 	TokenWhitespace    TokenType = "<whitespace>"
 	TokenComment       TokenType = "<comment>"
-	TokenInlineComment TokenType = "<inline-comment>"
 	TokenName          TokenType = "<name>"
 	TokenFieldName     TokenType = "<field-name>"
 	TokenInterfaceName TokenType = "<interface-name>"
@@ -143,6 +144,7 @@ func (b *backbuffer) unread() (rune, int, Cursor, Cursor) {
 
 type stateFunc func() stateFunc
 
+// Lexer lexes the Varlink IDL Input to produce Tokens.
 type Lexer struct {
 	// The input of this lexer. Typically a bufio.Reader.
 	Input io.RuneReader
@@ -166,6 +168,7 @@ type Lexer struct {
 	unread int          // number of unread bytes
 }
 
+// NewLexer creates a new lexer using the input Reader as source.
 func NewLexer(input io.Reader) *Lexer {
 	rscan, ok := input.(io.RuneReader)
 	if !ok {
@@ -175,11 +178,11 @@ func NewLexer(input io.Reader) *Lexer {
 	l := Lexer{
 		Input: rscan,
 	}
-	l.Reset()
+	l.reset()
 	return &l
 }
 
-func (l *Lexer) Reset() {
+func (l *Lexer) reset() {
 	l.state = l.lex
 	l.NextPosition = Cursor{1, 1}
 	l.Position = l.NextPosition
@@ -188,6 +191,7 @@ func (l *Lexer) Reset() {
 	l.token.Reset()
 }
 
+// Next advances the lexer stream and returns the next token.
 func (l *Lexer) Next() Token {
 	for {
 		select {
@@ -199,7 +203,7 @@ func (l *Lexer) Next() Token {
 	}
 }
 
-func (l *Lexer) Error(err error) stateFunc {
+func (l *Lexer) error(err error) stateFunc {
 	typ := TokenError
 	if err == io.EOF {
 		typ = TokenEOF
@@ -210,7 +214,7 @@ func (l *Lexer) Error(err error) stateFunc {
 	token := Token{
 		Type:  typ,
 		Value: err,
-		Raw:   l.Token(),
+		Raw:   l.tokenText(),
 		Start: l.TokenPosition,
 		End:   l.Position,
 	}
@@ -220,14 +224,14 @@ func (l *Lexer) Error(err error) stateFunc {
 	return nil
 }
 
-func (l *Lexer) Errorf(format string, args ...interface{}) stateFunc {
-	return l.Error(fmt.Errorf(format, args...))
+func (l *Lexer) errorf(format string, args ...interface{}) stateFunc {
+	return l.error(fmt.Errorf(format, args...))
 }
 
-func (l *Lexer) Emit(typ TokenType, val interface{}) {
+func (l *Lexer) emit(typ TokenType, val interface{}) {
 	token := Token{
 		Type:  typ,
-		Raw:   l.Token(),
+		Raw:   l.tokenText(),
 		Value: val,
 		Start: l.TokenPosition,
 		End:   l.Position,
@@ -237,12 +241,12 @@ func (l *Lexer) Emit(typ TokenType, val interface{}) {
 	l.TokenPosition = l.NextPosition
 }
 
-func (l *Lexer) Discard() {
+func (l *Lexer) discard() {
 	l.token.Reset()
 	l.TokenPosition = l.NextPosition
 }
 
-func (l *Lexer) ReadRune() (r rune, w int, err error) {
+func (l *Lexer) readRune() (r rune, w int, err error) {
 	if l.unread > 0 {
 		r, w, l.NextPosition, l.Position = l.prev.read()
 		l.unread--
@@ -268,7 +272,7 @@ func (l *Lexer) ReadRune() (r rune, w int, err error) {
 	return r, w, nil
 }
 
-func (l *Lexer) UnreadRune() error {
+func (l *Lexer) unreadRune() error {
 	_, w, next, pos := l.prev.unread()
 	l.unread++
 	l.NextPosition = next
@@ -277,21 +281,21 @@ func (l *Lexer) UnreadRune() error {
 	return nil
 }
 
-func (l *Lexer) PeekRune() (rune, int, error) {
-	r, w, err := l.ReadRune()
+func (l *Lexer) peekRune() (rune, int, error) {
+	r, w, err := l.readRune()
 	if err != nil {
 		return 0, 0, err
 	}
-	l.UnreadRune()
+	l.unreadRune()
 	return r, w, nil
 }
 
-func (l *Lexer) Token() string {
+func (l *Lexer) tokenText() string {
 	return string(l.token.Bytes())
 }
 
-func (l *Lexer) AcceptRune(exp rune) (rune, error) {
-	r, _, err := l.ReadRune()
+func (l *Lexer) acceptRune(exp rune) (rune, error) {
+	r, _, err := l.readRune()
 	switch {
 	case err != nil:
 		return 0, err
@@ -301,9 +305,9 @@ func (l *Lexer) AcceptRune(exp rune) (rune, error) {
 	return r, nil
 }
 
-func (l *Lexer) AcceptString(exp string) (string, error) {
+func (l *Lexer) acceptString(exp string) (string, error) {
 	for _, rexp := range exp {
-		r, _, err := l.ReadRune()
+		r, _, err := l.readRune()
 		switch {
 		case err != nil:
 			return "", err
@@ -314,21 +318,10 @@ func (l *Lexer) AcceptString(exp string) (string, error) {
 	return exp, nil
 }
 
-func (l *Lexer) AcceptFunc(fn func(rune) bool) (rune, error) {
-	r, _, err := l.ReadRune()
-	switch {
-	case err != nil:
-		return 0, err
-	case !fn(r):
-		return r, fmt.Errorf("unexpected character %q", r)
-	}
-	return r, nil
-}
-
-func (l *Lexer) AcceptUntil(fn func(rune) bool) (string, error) {
+func (l *Lexer) acceptUntil(fn func(rune) bool) (string, error) {
 	var out strings.Builder
 	for {
-		r, _, err := l.ReadRune()
+		r, _, err := l.readRune()
 		if err == io.EOF {
 			return out.String(), nil
 		}
@@ -336,22 +329,22 @@ func (l *Lexer) AcceptUntil(fn func(rune) bool) (string, error) {
 			return "", err
 		}
 		if !fn(r) {
-			l.UnreadRune()
+			l.unreadRune()
 			return out.String(), nil
 		}
 		out.WriteRune(r)
 	}
 }
 
-func (l *Lexer) AcceptNewline() error {
-	r, _, err := l.ReadRune()
+func (l *Lexer) acceptNewline() error {
+	r, _, err := l.readRune()
 	switch {
 	case err != nil:
 		return err
 	case r == '\n':
 		return nil
 	case r == '\r':
-		_, err = l.AcceptRune('\n')
+		_, err = l.acceptRune('\n')
 		return err
 	}
 	return fmt.Errorf("expected '\\n' or '\\r', got %q", r)
@@ -363,103 +356,103 @@ const (
 )
 
 func (l *Lexer) lex() stateFunc {
-	r, _, err := l.ReadRune()
+	r, _, err := l.readRune()
 	if err != nil {
-		return l.Error(err)
+		return l.error(err)
 	}
 
 	switch r {
 	case '(':
-		l.Emit(TokenLParen, nil)
+		l.emit(TokenLParen, nil)
 	case ')':
-		l.Emit(TokenRParen, nil)
+		l.emit(TokenRParen, nil)
 	case '[':
-		r, _, err := l.ReadRune()
+		r, _, err := l.readRune()
 		if err != nil {
-			return l.Error(err)
+			return l.error(err)
 		}
 		switch r {
 		case ']':
-			l.Emit(TokenArray, nil)
+			l.emit(TokenArray, nil)
 		case 's':
-			if _, err := l.AcceptString("tring]"); err != nil {
-				return l.Errorf("expected [string]")
+			if _, err := l.acceptString("tring]"); err != nil {
+				return l.errorf("expected [string]")
 			}
-			l.Emit(TokenDict, nil)
+			l.emit(TokenDict, nil)
 		default:
-			return l.Errorf("unexpected character %q", r)
+			return l.errorf("unexpected character %q", r)
 		}
 	case ':':
-		l.Emit(TokenColon, nil)
+		l.emit(TokenColon, nil)
 	case ',':
-		l.Emit(TokenComma, nil)
+		l.emit(TokenComma, nil)
 	case '?':
-		l.Emit(TokenOption, nil)
+		l.emit(TokenOption, nil)
 	case '-':
-		next, _, err := l.ReadRune()
+		next, _, err := l.readRune()
 		if err != nil || next != '>' {
-			return l.Error(err)
+			return l.error(err)
 		}
-		l.Emit(TokenArrow, nil)
+		l.emit(TokenArrow, nil)
 	// Newlines
 	case '\n', lineSep, parSep:
-		l.Emit(TokenNewline, nil)
+		l.emit(TokenNewline, nil)
 	case '\r':
-		lf, _, err := l.ReadRune()
+		lf, _, err := l.readRune()
 		if err != nil {
 			if err == io.EOF {
-				l.Emit(TokenNewline, nil)
+				l.emit(TokenNewline, nil)
 			}
-			return l.Error(err)
+			return l.error(err)
 		}
 		if lf != '\n' {
-			l.UnreadRune()
+			l.unreadRune()
 		}
-		l.Emit(TokenNewline, nil)
+		l.emit(TokenNewline, nil)
 	// Comments
 	case '#':
-		comment, err := l.AcceptUntil(func(r rune) bool {
+		comment, err := l.acceptUntil(func(r rune) bool {
 			return r != '\n'
 		})
 		if err != nil {
-			return l.Error(err)
+			return l.error(err)
 		}
-		err = l.AcceptNewline()
+		err = l.acceptNewline()
 		if err != nil && err != io.EOF {
-			return l.Error(err)
+			return l.error(err)
 		}
-		l.Emit(TokenComment, strings.TrimSpace(comment))
+		l.emit(TokenComment, strings.TrimSpace(comment))
 
 	default:
 		if unicode.IsSpace(r) {
 		loop:
 			for {
-				r, _, err := l.ReadRune()
+				r, _, err := l.readRune()
 				if err != nil {
 					if err == io.EOF {
-						l.Emit(TokenWhitespace, nil)
+						l.emit(TokenWhitespace, nil)
 					}
-					return l.Error(err)
+					return l.error(err)
 				}
 				switch r {
 				case '\n', '\r', lineSep, parSep:
-					l.UnreadRune()
+					l.unreadRune()
 					break loop
 				}
 				if !unicode.IsSpace(r) {
-					l.UnreadRune()
+					l.unreadRune()
 					break loop
 				}
 			}
-			l.Emit(TokenWhitespace, nil)
+			l.emit(TokenWhitespace, nil)
 			return l.lex
 		}
 
 		if isIdentifierChar(r, 0) {
-			l.UnreadRune()
+			l.unreadRune()
 			return l.lexIdentifier
 		}
-		return l.Errorf("unexpected character %q", r)
+		return l.errorf("unexpected character %q", r)
 	}
 	return l.lex
 }
@@ -475,7 +468,7 @@ const (
 	rkeyword = `(interface|method|error|type|any|object|string|int|float|bool)`
 )
 
-var reIdentifier = MustCompileRegexp("identifier", `(?m:^(?:`+rname+`|`+rintf+`|`+rfield+`|`+rkeyword+`))`)
+var reIdentifier = mustCompileRegexp("identifier", `(?m:^(?:`+rname+`|`+rintf+`|`+rfield+`|`+rkeyword+`))`)
 
 var keywordTokenMap = map[string]TokenType{
 	"interface": TokenInterfaceDef,
@@ -493,7 +486,7 @@ var keywordTokenMap = map[string]TokenType{
 func (l *Lexer) lexIdentifier() stateFunc {
 	ident, err := reIdentifier.Accept(l)
 	if err != nil {
-		return l.Error(err)
+		return l.error(err)
 	}
 
 	// reject groups that do not take the length of the full match
@@ -515,23 +508,23 @@ func (l *Lexer) lexIdentifier() stateFunc {
 	// Coercion rules -- some keywords can be names, depending on when
 	// they appear in the parse tree.
 	case l.CoerceIdentifierType == TokenName && ident[name] != "":
-		l.Emit(TokenName, ident[name])
+		l.emit(TokenName, ident[name])
 	case l.CoerceIdentifierType == TokenInterfaceName && ident[intf] != "":
-		l.Emit(TokenInterfaceName, ident[intf])
+		l.emit(TokenInterfaceName, ident[intf])
 	case l.CoerceIdentifierType == TokenFieldName && ident[field] != "":
-		l.Emit(TokenFieldName, ident[field])
+		l.emit(TokenFieldName, ident[field])
 
 	// Normal rules
 	case ident[keyword] != "":
-		l.Emit(keywordTokenMap[ident[keyword]], ident[keyword])
+		l.emit(keywordTokenMap[ident[keyword]], ident[keyword])
 	case ident[name] != "":
-		l.Emit(TokenName, ident[name])
+		l.emit(TokenName, ident[name])
 	case ident[intf] != "":
-		l.Emit(TokenInterfaceName, ident[intf])
+		l.emit(TokenInterfaceName, ident[intf])
 	case ident[field] != "":
-		l.Emit(TokenFieldName, ident[field])
+		l.emit(TokenFieldName, ident[field])
 	default:
-		panic("no groups matched but syntax.Regexp.Accept did not return an error")
+		panic("no groups matched but syntax.regexp.Accept did not return an error")
 	}
 
 	return l.lex

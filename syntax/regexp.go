@@ -12,17 +12,17 @@ import (
 	"strings"
 )
 
-// Accept is a more consistently-behaving regexp matcher. It uses regexp/syntax
+// regexp is a more consistently-behaving regexp matcher. It uses regexp/syntax
 // under the covers, and guarantees that no runes are read unnecessarily.
 // It's not particularly fast, and does not optimize at all the regexp bytecode,
 // but it is correct and conservative in its rune reading.
-type Regexp struct {
+type regexp struct {
 	orig string
 	name string
 	prog *syntax.Prog
 }
 
-func CompileRegexp(name, s string) (*Regexp, error) {
+func compileRegexp(name, s string) (*regexp, error) {
 	re, err := syntax.Parse(s, syntax.ClassNL|syntax.DotNL|syntax.OneLine|syntax.PerlX)
 	if err != nil {
 		return nil, err
@@ -31,35 +31,35 @@ func CompileRegexp(name, s string) (*Regexp, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Regexp{orig: s, name: name, prog: prog}, nil
+	return &regexp{orig: s, name: name, prog: prog}, nil
 }
 
-func MustCompileRegexp(name, s string) *Regexp {
-	re, err := CompileRegexp(name, s)
+func mustCompileRegexp(name, s string) *regexp {
+	re, err := compileRegexp(name, s)
 	if err != nil {
 		panic(err)
 	}
 	return re
 }
 
-func (re *Regexp) String() string {
+func (re *regexp) String() string {
 	if re.name != "" {
 		return re.name
 	}
 	return re.orig
 }
 
-func (re *Regexp) GoString() string {
+func (re *regexp) GoString() string {
 	return "`" + re.orig + "`"
 }
 
 // Accept accepts and returns the longest run of characters coming out of the
 // lexer stream that matches the regular expression, or returns an error if it
 // doesn't.
-func (re *Regexp) Accept(l *Lexer) ([]string, error) {
+func (re *regexp) Accept(l *Lexer) ([]string, error) {
 
 	prefix, complete := re.prog.Prefix()
-	if _, err := l.AcceptString(prefix); err != nil {
+	if _, err := l.acceptString(prefix); err != nil {
 		return nil, err
 	}
 	if complete {
@@ -84,7 +84,7 @@ func (re *Regexp) Accept(l *Lexer) ([]string, error) {
 	cur = append(cur, uint32(re.prog.Start))
 	last = -1
 	for len(cur) != 0 {
-		r, w, err = l.ReadRune()
+		r, w, err = l.readRune()
 		if err != nil {
 			// Finish execution of any non-advancing instructions before
 			// breaking out.
@@ -144,7 +144,7 @@ func (re *Regexp) Accept(l *Lexer) ([]string, error) {
 	if err == nil {
 		pos -= w
 		s = s[:pos]
-		l.UnreadRune()
+		l.unreadRune()
 	}
 
 	if err == io.EOF {
