@@ -28,6 +28,14 @@ type varlinkError struct {
 	Parameters json.RawMessage
 }
 
+// NewError builds a varlink error from the given error code and key-value pairs.
+//
+// The list of key-values encodes to a map[string]any before being marshaled as
+// the error's parameters. For instance, NewError("org.example.Error", "foo", "bar")
+// is fully equivalent to an error with parameters {"foo": "bar"}.
+//
+// Users are encouraged to define their own error types instead of using
+// NewError.
 func NewError(code string, kvs ...any) Error {
 	if len(kvs)%2 != 0 {
 		panic("programming error: key-value pair list has odd number of elements")

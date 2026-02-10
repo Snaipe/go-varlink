@@ -14,10 +14,20 @@ import (
 
 var DefaultTransport RoundTripper = &Transport{}
 
+// RoundTripper is an interface representing the ability to make a single
+// method call, and returning a reply stream.
+//
+// A RoundTripper must be safe for concurrent use by multiple goroutines.
 type RoundTripper interface {
 	RoundTrip(ctx context.Context, session *Session, call *Call) (*ReplyStream, error)
 }
 
+// Transport is the default RoundTripper implementation.
+//
+// By default, Transport caches connections for future re-use. This may leave
+// open connections when accessing many URIs. This behavior can be managed
+// using the [Transport.CloseIdleConnections] method and the
+// [Transport.MaxKeepAliveSessions] field.
 type Transport struct {
 	// Server is varlink server used for any new session opened by the
 	// transport to serve any received session calls.
@@ -130,6 +140,8 @@ func (ts *Transport) giveSession(uri URI, session *Session) {
 	}
 }
 
+// CloseIdleConnections closes any idle connections that have been opened and
+// cached by the RoundTrip method.
 func (ts *Transport) CloseIdleConnections() {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
@@ -161,6 +173,7 @@ type FdPasser interface {
 	CollectFds() []uintptr
 }
 
+// ReplyStream represents a stream of replies that result from a method call.
 type ReplyStream struct {
 	ctx  context.Context
 	call *Call
@@ -170,6 +183,10 @@ type ReplyStream struct {
 	more bool
 }
 
+// NewReplyStream creates a new reply stream for the specified call, reading
+// from the specified session.
+//
+// The specified call must have been previously sent via session.WriteCall.
 func NewReplyStream(ctx context.Context, call *Call, session *Session) *ReplyStream {
 	return &ReplyStream{ctx: ctx, call: call, sess: session, more: true}
 }

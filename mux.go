@@ -16,12 +16,17 @@ import (
 	"snai.pe/go-varlink/syntax"
 )
 
+// HandlerFunc is an adapter to allow the use of ordinary functions as method
+// handlers.
 type HandlerFunc func(w ReplyWriter, call *Call)
 
 func (fn HandlerFunc) ServeMethod(w ReplyWriter, call *Call) {
 	fn(w, call)
 }
 
+// ServeMux is a method handler multiplexer. It matches the fully-qualified
+// method name of each incoming call against a list of registered patterns
+// and calls the handler for the pattern that matches.
 type ServeMux struct {
 	patterns     []string
 	handlers     map[string]MethodHandler
@@ -29,10 +34,12 @@ type ServeMux struct {
 	info         service.GetInfoOutput
 }
 
+// HandlerFunc registers a handler function to the specified pattern.
 func (mux *ServeMux) HandleFunc(pattern string, handler HandlerFunc) {
 	mux.Handle(pattern, handler)
 }
 
+// HandlerFunc registers a handler to the specified pattern.
 func (mux *ServeMux) Handle(pattern string, handler MethodHandler) {
 	if _, err := path.Match(pattern, ""); err != nil {
 		panic(err)
@@ -76,6 +83,11 @@ func (mux *ServeMux) SetInfo(vendor, product, version, url string) {
 	}
 }
 
+// ServeMethod dispatches the call to the handler whose pattern matches the
+// call's method name.
+//
+// It also responds to org.varlink.service introspection methods based on
+// information registered via SetInfo and SetDescription.
 func (mux *ServeMux) ServeMethod(w ReplyWriter, call *Call) {
 	switch call.Method {
 	case `org.varlink.service.GetInfo`:

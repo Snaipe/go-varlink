@@ -24,6 +24,7 @@ var (
 	ErrUnsupportedScheme = errors.New("unsupported scheme")
 )
 
+// Call represents a Varlink call.
 type Call struct {
 
 	// The URI to make the call to.

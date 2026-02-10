@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+// UnixConn is the same as net.UnixConn, but supports sending and receiving
+// file descriptors alongside any data.
 type UnixConn struct {
 	conn *net.UnixConn
 	rfds []uintptr

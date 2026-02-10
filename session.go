@@ -20,6 +20,7 @@ var (
 	ErrFdPassingNotSupported = errors.New("file descriptor passing is not supported on this net.Conn")
 )
 
+// Session represents a varlink connection.
 type Session struct {
 	conn     net.Conn
 	wmu      sync.Mutex
@@ -32,6 +33,8 @@ type Session struct {
 	reading  bool
 }
 
+// NewSession creates a session from a net.Conn. The session takes ownership
+// of that connection, and closing the session closes the underlying connection.
 func NewSession(conn net.Conn) *Session {
 	switch c := conn.(type) {
 	case *net.UnixConn:
@@ -51,6 +54,7 @@ func NewSession(conn net.Conn) *Session {
 	return sess
 }
 
+// WriteCall writes a call to the connection.
 func (session *Session) WriteCall(ctx context.Context, call *Call) error {
 
 	if err := ctx.Err(); err != nil {
@@ -66,7 +70,7 @@ func (session *Session) WriteCall(ctx context.Context, call *Call) error {
 		return err
 	}
 
-	if err := session.WriteMsg(payload, call.FileDescriptors); err != nil {
+	if err := session.writeMsg(payload, call.FileDescriptors); err != nil {
 		return err
 	}
 
@@ -145,6 +149,15 @@ func (session *Session) waitCall(ctx context.Context, initiator *Call) error {
 	return nil
 }
 
+// ReadReply reads a reply from the connection.
+//
+// The initiating call must be specified to protect from out-of-order reception
+// when multiple ReadReply calls are in flight.
+//
+// If a call is received instead, it is queued and sent to a blocked ReadCall.
+//
+// ReadReply blocks until a matching reply is received, or the context becomes
+// done.
 func (session *Session) ReadReply(ctx context.Context, initiator *Call, reply *Reply) error {
 
 	if err := session.waitCall(ctx, initiator); err != nil {
@@ -200,6 +213,10 @@ func (session *Session) readReply(ctx context.Context, reply *Reply) error {
 	}
 }
 
+// ReadCall reads a call from the connection. If a reply is received instead,
+// it is queued and sent to a matching ReadReply.
+//
+// ReadCall blocks until a call is received, or the context becomes done.
 func (session *Session) ReadCall(ctx context.Context, call *Call) error {
 	session.rcond.L.Lock()
 	defer session.rcond.L.Unlock()
@@ -236,7 +253,22 @@ func (session *Session) ReadCall(ctx context.Context, call *Call) error {
 	}
 }
 
-func (session *Session) WriteMsg(msg []byte, fds []uintptr) error {
+// WriteReply writes a reply to the connection.
+func (session *Session) WriteReply(ctx context.Context, reply *Reply) error {
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	payload, err := json.Marshal(reply)
+	if err != nil {
+		return err
+	}
+
+	return session.writeMsg(payload, reply.FileDescriptors)
+}
+
+func (session *Session) writeMsg(msg []byte, fds []uintptr) error {
 	session.wmu.Lock()
 	defer session.wmu.Unlock()
 
@@ -288,15 +320,18 @@ func (session *Session) Hijack() (conn net.Conn, rbuf []byte, err error) {
 	return conn, rbuf, err
 }
 
+// Close terminates the session and closes the underlying connection.
 func (session *Session) Close() error {
 	session.wmu.Lock()
 	session.rcond.L.Lock()
 	defer session.rcond.L.Unlock()
 	defer session.wmu.Unlock()
 
+	session.cond.Broadcast()
 	return session.conn.Close()
 }
 
+// Dial opens a session for the specified uri.
 func Dial(ctx context.Context, uri string) (*Session, error) {
 	u, err := ParseURI(uri)
 	if err != nil {

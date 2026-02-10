@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/github/license/Snaipe/go-varlink?color=brightgreen)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none!-brightgreen)](go.mod)
 
-go-varlink is pure-Go [Varlink][varlink] client and server implementation.
+go-varlink is a pure-Go [Varlink][varlink] client and server implementation.
 
 ## Features
 

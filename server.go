@@ -7,7 +7,6 @@ package varlink
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -16,17 +15,32 @@ import (
 	"snai.pe/go-varlink/internal/service"
 )
 
+// MethodHandler is the interface that must be implemented to serve a method.
 type MethodHandler interface {
+
+	// ServeMethod is called by Server whenever a call is received. The handler
+	// is expected to write a response into the specified ReplyWriter, or
+	// to write an Error.
 	ServeMethod(w ReplyWriter, call *Call)
 }
 
+// ReplyWriter is the writer that a Server passes to a method handler in
+// order to write a reply back to the client.
 type ReplyWriter interface {
+
+	// Context returns the context of this call. The context becomes done
+	// if the session closes, or if the server closes.
 	Context() context.Context
 
+	// WriteError writes an error reply back to the client.
 	WriteError(err Error) error
 
+	// WriteReply writes a reply with the specified parameters and options
+	// back to the client.
 	WriteReply(parameters any, opts ...ReplyOption) error
 
+	// Call makes a method call back to the client, and returns the stream of
+	// replies.
 	Call(method string, params any, opts ...CallOption) (*ReplyStream, error)
 }
 
@@ -88,22 +102,19 @@ func (w *replyWriter) writeReply(reply *Reply) error {
 		panic("method call has already been replied to.")
 	}
 
-	payload, err := json.Marshal(reply)
-	if err != nil {
-		return err
-	}
-
 	if !reply.Continues {
 		w.replied = true
 	}
-	err = w.session.WriteMsg(payload, reply.FileDescriptors)
+	err := w.session.WriteReply(w.ctx, reply)
 	if errors.Is(err, ErrPeerDisconnected) {
 		w.cancel(ErrPeerDisconnected)
 	}
 	return err
 }
 
+// Server implements a Varlink server.
 type Server struct {
+
 	// Handler is the MethodHandler used to serve method calls.
 	Handler MethodHandler
 
@@ -134,6 +145,11 @@ type Server struct {
 	PipelineOverflowErrorFunc func(call *Call) Error
 }
 
+// Serve accepts incoming varlink connections on the listener l, creating a new
+// service goroutine for each. The service goroutine creates a session from the
+// connection, reads method calls and calls the server Handler to reply to them.
+//
+// Serve always returns a non-nil error.
 func (s *Server) Serve(l net.Listener) error {
 
 	var wg sync.WaitGroup
@@ -162,6 +178,10 @@ func (s *Server) Serve(l net.Listener) error {
 	}
 }
 
+// ServeConn creates a session from the specified connection, reads method
+// calls, and replies to them by calling the server Handler.
+//
+// ServeConn closes the underlying connection.
 func (s *Server) ServeConn(ctx context.Context, conn net.Conn) {
 	session := NewSession(conn)
 	defer session.Close()
@@ -169,6 +189,8 @@ func (s *Server) ServeConn(ctx context.Context, conn net.Conn) {
 	s.ServeSession(ctx, session)
 }
 
+// ServeSession reads method calls from the session and calls the server
+// Handler to reply to them.
 func (s *Server) ServeSession(ctx context.Context, session *Session) {
 	transport := s.Transport
 	if transport == nil {
@@ -246,6 +268,7 @@ func (s *Server) ServeSession(ctx context.Context, session *Session) {
 	}
 }
 
+// Listen binds the specified varlink uri and listens for incoming connections.
 func Listen(uri string) (net.Listener, error) {
 	u, err := ParseURI(uri)
 	if err != nil {
@@ -260,6 +283,8 @@ func Listen(uri string) (net.Listener, error) {
 	}
 }
 
+// ListenAndServe listens on the specified uri and serves the specified
+// method handler on inbound connections.
 func ListenAndServe(uri string, handler MethodHandler) error {
 	listener, err := Listen(uri)
 	if err != nil {
