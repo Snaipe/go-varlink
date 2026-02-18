@@ -302,14 +302,16 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
+		{{ with trim (include "validate" "input" "" .Input) -}}
 		validate := func() Error {
-			{{ include "validate" "input" "" .Input }}
+			{{ . }}
 			return nil
 		}
 		if err := validate(); err != nil {
 			w.WriteError(err)
 			return
 		}
+		{{- end }}
 
 		var err Error
 		{{ if $outputargs }}{{ include "fields" .Output "output" }}, {{ end }}err = s.{{ pascalCase .Name }}(w.Context(), {{ include "fields" .Input "input" }})

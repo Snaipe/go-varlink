@@ -394,15 +394,6 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		validate := func() Error {
-
-			return nil
-		}
-		if err := validate(); err != nil {
-			w.WriteError(err)
-			return
-		}
-
 		var err Error
 		output.Vendor, output.Product, output.Version, output.Url, output.Interfaces, err = s.GetInfo(w.Context())
 		if err != nil {
@@ -419,15 +410,6 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 		)
 
 		if err := call.Unmarshal(&input); err != nil {
-			w.WriteError(err)
-			return
-		}
-
-		validate := func() Error {
-
-			return nil
-		}
-		if err := validate(); err != nil {
 			w.WriteError(err)
 			return
 		}

@@ -274,15 +274,6 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		validate := func() varlink.Error {
-
-			return nil
-		}
-		if err := validate(); err != nil {
-			w.WriteError(err)
-			return
-		}
-
 		var err Error
 		output.Pong, err = s.Ping(w.Context(), input.Ping)
 		if err != nil {
@@ -299,15 +290,6 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 		)
 
 		if err := call.Unmarshal(&input); err != nil {
-			w.WriteError(err)
-			return
-		}
-
-		validate := func() varlink.Error {
-
-			return nil
-		}
-		if err := validate(); err != nil {
 			w.WriteError(err)
 			return
 		}
