@@ -203,15 +203,12 @@ func (r *ReplyStream) Next() bool {
 		return false
 	}
 
-	if r.cur.Error != "" {
-		r.err = &varlinkError{Code: r.cur.Error, Parameters: r.cur.Parameters}
-	}
 	r.more = r.cur.Continues
 	return true
 }
 
-// Reply returns the current error in the stream. These can be session errors,
-// or error replies. Error replies are converted and returned as Go errors.
+// Error returns any session/connection error that occured while reading
+// the last reply. In particular, error replies are not returned here.
 func (r *ReplyStream) Error() error {
 	return r.err
 }
@@ -224,7 +221,27 @@ func (r *ReplyStream) Reply() *Reply {
 }
 
 // Unmarshal unmarshals the parameters of the current reply into the specified
-// pointer value.
+// pointer value. If the reply is an error reply, it is returned instead.
 func (r *ReplyStream) Unmarshal(params any) Error {
+	if r.cur.Error != "" {
+		return &varlinkError{Code: r.cur.Error, Parameters: r.cur.Parameters}
+	}
 	return r.cur.Unmarshal(params)
+}
+
+// Close closes the reply stream.
+//
+// If there are pending replies that have not been received yet, the function
+// closes the underlying session. Otherwise, the function does nothing.
+//
+// This function is useful for interrupting reply streams that go on forever,
+// but because of the local ordering of replies, it has to close the connection
+// in order to perform this interruption. Users that expect to keep the
+// underlying session alive should refrain from making method calls with the
+// "More" option set.
+func (r *ReplyStream) Close() error {
+	if r.more {
+		return r.sess.Close()
+	}
+	return nil
 }

@@ -93,9 +93,12 @@ func client(uri string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rs.Close()
 
 	for rs.Next() {
-		rs.Unmarshal(&params)
+		if err := rs.Unmarshal(&params); err != nil {
+			log.Fatal(err)
+		}
 
 		log.Println(params.Echo)
 	}

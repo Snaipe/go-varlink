@@ -61,7 +61,7 @@ func (mux *ServeMux) Handle(pattern string, handler MethodHandler) {
 func (mux *ServeMux) SetDescription(intf string, desc string) {
 	_, err := syntax.NewParser(strings.NewReader(desc)).Parse()
 	if err != nil {
-		panic(fmt.Sprintf("description for %q isn't written in the Varlink IDL: %v", err))
+		panic(fmt.Sprintf("description for %q isn't written in the Varlink IDL: %v", intf, err))
 	}
 
 	if mux.descriptions == nil {

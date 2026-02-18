@@ -156,12 +156,15 @@ func client(uri string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer r.Close()
 
 	for r.Next() {
 		var result struct {
 			Result string `json:"result"`
 		}
-		r.Unmarshal(&result)
+		if err := r.Unmarshal(&result); err != nil {
+			log.Fatal(err)
+		}
 
 		log.Println(result.Result)
 	}

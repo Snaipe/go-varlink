@@ -84,6 +84,7 @@ func client(uri string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer r.Close()
 
 	r.Next()
 
