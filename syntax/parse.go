@@ -28,8 +28,9 @@ func (p *Parser) Parse() (intf InterfaceDef, err error) {
 }
 
 type parser struct {
-	lexer *Lexer
-	prev  []Token
+	lexer       *Lexer
+	prev        []Token
+	coerceIdent TokenType
 }
 
 func (p *parser) Next() (token Token) {
@@ -45,6 +46,9 @@ func (p *parser) Next() (token Token) {
 			continue
 		case TokenError:
 			p.error(token, nil)
+		}
+		if _, ok := keywordTokenMap[token.Raw]; ok && p.coerceIdent != "" {
+			token.Type = p.coerceIdent
 		}
 		return token
 	}
@@ -208,11 +212,11 @@ func (p *parser) ElementType() Type {
 		return typ
 
 	case TokenLParen:
-		p.lexer.CoerceIdentifierType = TokenFieldName
 		comments := p.Comments()
 
+		p.coerceIdent = TokenFieldName
 		firstnameOrRparen := p.Accept(TokenFieldName, TokenRParen)
-		p.lexer.CoerceIdentifierType = TokenEOF
+		p.coerceIdent = TokenEOF
 
 		if firstnameOrRparen.Type == TokenRParen {
 			p.Back(firstnameOrRparen)
@@ -256,13 +260,12 @@ func (p *parser) ElementType() Type {
 }
 
 func (p *parser) EnumType() (e EnumType) {
-	p.lexer.CoerceIdentifierType = TokenFieldName
-	defer func() { p.lexer.CoerceIdentifierType = TokenEOF }()
-
 	start := p.Accept(TokenLParen)
 	e.Position = start.Start
 
+	p.coerceIdent = TokenFieldName
 	next := p.Accept(TokenFieldName, TokenComment, TokenNewline)
+	p.coerceIdent = TokenEOF
 	switch next.Type {
 	case TokenFieldName:
 		p.Back(next)
@@ -274,9 +277,9 @@ func (p *parser) EnumType() (e EnumType) {
 	for {
 		comments := p.Comments()
 
-		p.lexer.CoerceIdentifierType = TokenFieldName
+		p.coerceIdent = TokenFieldName
 		name := p.Accept(TokenFieldName, TokenRParen)
-		p.lexer.CoerceIdentifierType = TokenEOF
+		p.coerceIdent = TokenEOF
 
 		if name.Type == TokenRParen {
 			return e
@@ -300,9 +303,9 @@ func (p *parser) EnumType() (e EnumType) {
 			p.Back(comma)
 		}
 
-		p.lexer.CoerceIdentifierType = TokenFieldName
+		p.coerceIdent = TokenFieldName
 		next := p.Accept(TokenRParen, TokenComment, TokenNewline, TokenFieldName)
-		p.lexer.CoerceIdentifierType = TokenEOF
+		p.coerceIdent = TokenEOF
 		switch next.Type {
 		case TokenFieldName:
 			p.Back(next)
@@ -320,9 +323,9 @@ func (p *parser) StructType() (s StructType) {
 	start := p.Accept(TokenLParen)
 	s.Position = start.Start
 
-	p.lexer.CoerceIdentifierType = TokenFieldName
+	p.coerceIdent = TokenFieldName
 	next := p.Accept(TokenFieldName, TokenComment, TokenNewline, TokenRParen)
-	p.lexer.CoerceIdentifierType = TokenEOF
+	p.coerceIdent = TokenEOF
 	switch next.Type {
 	case TokenRParen:
 		return
@@ -336,9 +339,9 @@ func (p *parser) StructType() (s StructType) {
 	for {
 		comments := p.Comments()
 
-		p.lexer.CoerceIdentifierType = TokenFieldName
+		p.coerceIdent = TokenFieldName
 		name := p.Accept(TokenFieldName, TokenRParen)
-		p.lexer.CoerceIdentifierType = TokenEOF
+		p.coerceIdent = TokenEOF
 
 		if name.Type == TokenRParen {
 			return s
@@ -365,9 +368,9 @@ func (p *parser) StructType() (s StructType) {
 			p.Back(comma)
 		}
 
-		p.lexer.CoerceIdentifierType = TokenFieldName
+		p.coerceIdent = TokenFieldName
 		next := p.Accept(TokenRParen, TokenComment, TokenNewline, TokenFieldName)
-		p.lexer.CoerceIdentifierType = TokenEOF
+		p.coerceIdent = TokenEOF
 		switch next.Type {
 		case TokenFieldName:
 			p.Back(next)
@@ -385,10 +388,10 @@ func (p *parser) MethodDef() (method MethodDef) {
 	token := p.Accept(TokenMethodDef)
 	method.Position = token.Start
 
-	p.lexer.CoerceIdentifierType = TokenName
+	p.coerceIdent = TokenName
 	name := p.Accept(TokenName)
 	method.Name = name.Value.(string)
-	p.lexer.CoerceIdentifierType = TokenEOF
+	p.coerceIdent = TokenEOF
 
 	method.Input = p.StructType()
 

@@ -158,9 +158,6 @@ type Lexer struct {
 	// The cursor position of the current rune.
 	Position Cursor
 
-	// The token type to coerce identifiers to.
-	CoerceIdentifierType TokenType
-
 	state  stateFunc    // current state
 	token  bytes.Buffer // current token
 	tokens chan Token   // token ring buffer
@@ -505,16 +502,6 @@ func (l *Lexer) lexIdentifier() stateFunc {
 	)
 
 	switch {
-	// Coercion rules -- some keywords can be names, depending on when
-	// they appear in the parse tree.
-	case l.CoerceIdentifierType == TokenName && ident[name] != "":
-		l.emit(TokenName, ident[name])
-	case l.CoerceIdentifierType == TokenInterfaceName && ident[intf] != "":
-		l.emit(TokenInterfaceName, ident[intf])
-	case l.CoerceIdentifierType == TokenFieldName && ident[field] != "":
-		l.emit(TokenFieldName, ident[field])
-
-	// Normal rules
 	case ident[keyword] != "":
 		l.emit(keywordTokenMap[ident[keyword]], ident[keyword])
 	case ident[name] != "":
