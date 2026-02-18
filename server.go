@@ -51,6 +51,7 @@ type replyWriter struct {
 	transport RoundTripper
 	mu        sync.Mutex
 	replied   bool
+	suppress  bool
 }
 
 func (w *replyWriter) WriteError(err Error) error {
@@ -58,6 +59,9 @@ func (w *replyWriter) WriteError(err Error) error {
 }
 
 func (w *replyWriter) WriteReply(parameters any, opts ...ReplyOption) error {
+	if w.suppress {
+		return nil
+	}
 	if err := w.ctx.Err(); err != nil {
 		return err
 	}
@@ -213,6 +217,7 @@ func (s *Server) ServeSession(ctx context.Context, session *Session) {
 				cancel:    cancel,
 				session:   session,
 				transport: transport,
+				suppress:  call.OneWay,
 			}
 
 			if s.Handler == nil {

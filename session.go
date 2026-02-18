@@ -74,9 +74,11 @@ func (session *Session) WriteCall(ctx context.Context, call *Call) error {
 		return err
 	}
 
-	session.cond.L.Lock()
-	session.inflight = append(session.inflight, call)
-	session.cond.L.Unlock()
+	if !call.OneWay {
+		session.cond.L.Lock()
+		session.inflight = append(session.inflight, call)
+		session.cond.L.Unlock()
+	}
 
 	return nil
 }
