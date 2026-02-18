@@ -37,9 +37,10 @@ map[string]{{ template "type" .ElemType }}
 {{- end }}
 
 {{- define "args" -}}
-{{- with struct . -}}
+{{- $prefix := (index . 1) }}
+{{- with struct (index . 0) -}}
 {{- range $i, $f := .Fields }}
-{{- if $i -}}, {{ end }}{{ escapekw (camelCase $f.Name) }} {{ template "type" .Type }}
+{{- if $i -}}, {{ end }}{{ escapekw (camelCase (concat $prefix $f.Name)) }} {{ template "type" .Type }}
 {{- end -}}
 {{- else -}}
 {{ errorf "expected struct for args template" }}
@@ -47,9 +48,10 @@ map[string]{{ template "type" .ElemType }}
 {{- end }}
 
 {{- define "callargs" -}}
-{{- with struct . -}}
+{{- $prefix := (index . 1) }}
+{{- with struct (index . 0) -}}
 {{- range $i, $f := .Fields }}
-{{- if $i -}}, {{ end }}{{ escapekw (camelCase $f.Name) }}
+{{- if $i -}}, {{ end }}{{ escapekw (camelCase (concat $prefix $f.Name)) }}
 {{- end -}}
 {{- else -}}
 {{ errorf "expected struct for callargs template" }}

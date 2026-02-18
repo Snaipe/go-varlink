@@ -229,51 +229,51 @@ type Client struct {
 func ErrorFromCode(code string, params json.RawMessage) Error {
 	switch code {
 	case `org.varlink.service.InterfaceNotFound`:
-		var err_ InterfaceNotFoundError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.InterfaceNotFound params is invalid json: ` + err2_.Error())
+		var err InterfaceNotFoundError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.InterfaceNotFound params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 
 	case `org.varlink.service.MethodNotFound`:
-		var err_ MethodNotFoundError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.MethodNotFound params is invalid json: ` + err2_.Error())
+		var err MethodNotFoundError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.MethodNotFound params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 
 	case `org.varlink.service.MethodNotImplemented`:
-		var err_ MethodNotImplementedError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.MethodNotImplemented params is invalid json: ` + err2_.Error())
+		var err MethodNotImplementedError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.MethodNotImplemented params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 
 	case `org.varlink.service.InvalidParameter`:
-		var err_ InvalidParameterError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.InvalidParameter params is invalid json: ` + err2_.Error())
+		var err InvalidParameterError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.InvalidParameter params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 
 	case `org.varlink.service.PermissionDenied`:
-		var err_ PermissionDeniedError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.PermissionDenied params is invalid json: ` + err2_.Error())
+		var err PermissionDeniedError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.PermissionDenied params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 
 	case `org.varlink.service.ExpectedMore`:
-		var err_ ExpectedMoreError
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: org.varlink.service.ExpectedMore params is invalid json: ` + err2_.Error())
+		var err ExpectedMoreError
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: org.varlink.service.ExpectedMore params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 	default:
 		var kvargs []any
 		var pmap map[string]any
-		if err2_ := json.Unmarshal([]byte(params), &pmap); err2_ != nil {
-			panic(`programming error: ` + code + ` params is invalid json: ` + err2_.Error())
+		if err2 := json.Unmarshal([]byte(params), &pmap); err2 != nil {
+			panic(`programming error: ` + code + ` params is invalid json: ` + err2.Error())
 		}
 		for k, v := range pmap {
 			kvargs = append(kvargs, k, v)
@@ -284,80 +284,80 @@ func ErrorFromCode(code string, params json.RawMessage) Error {
 
 // Get a list of all the interfaces a service provides and information
 // about the implementation.
-func (client_ *Client) GetInfo(ctx context.Context) (vendor string, product string, version string, url string, interfaces []string, err_ error) {
+func (client *Client) GetInfo(ctx context.Context) (outVendor string, outProduct string, outVersion string, outUrl string, outInterfaces []string, err error) {
 	var (
-		input_  GetInfoInput
-		output_ GetInfoOutput
+		input  GetInfoInput
+		output GetInfoOutput
 	)
 
-	rs, err := client_.Call(ctx, `org.varlink.service.GetInfo`, &input_)
-	if err != nil {
-		err_ = err
+	rs, err2 := client.Call(ctx, `org.varlink.service.GetInfo`, &input)
+	if err2 != nil {
+		err = err2
 		return
 	}
 
 	for rs.Next() {
 		r := rs.Reply()
 		if r.Error != "" {
-			err_ = ErrorFromCode(r.Error, r.Parameters)
+			err = ErrorFromCode(r.Error, r.Parameters)
 			return
 		}
 		if r.Continues {
-			err_ = fmt.Errorf("more than one reply on single-reply call")
+			err = fmt.Errorf("more than one reply on single-reply call")
 			return
 		}
 
-		if err := rs.Unmarshal(&output_); err != nil {
-			err_ = err
+		if err2 := rs.Unmarshal(&output); err2 != nil {
+			err = err2
 			return
 		}
 	}
-	if err := rs.Error(); err != nil {
-		err_ = err
+	if err2 := rs.Error(); err2 != nil {
+		err = err2
 		return
 	}
 
-	vendor, product, version, url, interfaces = output_.Unpack()
+	outVendor, outProduct, outVersion, outUrl, outInterfaces = output.Unpack()
 	return
 }
 
 // Get the description of an interface that is implemented by this service.
-func (client_ *Client) GetInterfaceDescription(ctx context.Context, interface_ string) (description string, err_ error) {
+func (client *Client) GetInterfaceDescription(ctx context.Context, inInterface string) (outDescription string, err error) {
 	var (
-		input_  GetInterfaceDescriptionInput
-		output_ GetInterfaceDescriptionOutput
+		input  GetInterfaceDescriptionInput
+		output GetInterfaceDescriptionOutput
 	)
 
-	input_.Pack(interface_)
+	input.Pack(inInterface)
 
-	rs, err := client_.Call(ctx, `org.varlink.service.GetInterfaceDescription`, &input_)
-	if err != nil {
-		err_ = err
+	rs, err2 := client.Call(ctx, `org.varlink.service.GetInterfaceDescription`, &input)
+	if err2 != nil {
+		err = err2
 		return
 	}
 
 	for rs.Next() {
 		r := rs.Reply()
 		if r.Error != "" {
-			err_ = ErrorFromCode(r.Error, r.Parameters)
+			err = ErrorFromCode(r.Error, r.Parameters)
 			return
 		}
 		if r.Continues {
-			err_ = fmt.Errorf("more than one reply on single-reply call")
+			err = fmt.Errorf("more than one reply on single-reply call")
 			return
 		}
 
-		if err := rs.Unmarshal(&output_); err != nil {
-			err_ = err
+		if err2 := rs.Unmarshal(&output); err2 != nil {
+			err = err2
 			return
 		}
 	}
-	if err := rs.Error(); err != nil {
-		err_ = err
+	if err2 := rs.Error(); err2 != nil {
+		err = err2
 		return
 	}
 
-	description = output_.Unpack()
+	outDescription = output.Unpack()
 	return
 }
 
@@ -367,10 +367,10 @@ type Service interface {
 
 	// Get a list of all the interfaces a service provides and information
 	// about the implementation.
-	GetInfo(ctx context.Context) (vendor string, product string, version string, url string, interfaces []string, err_ Error)
+	GetInfo(ctx context.Context) (outVendor string, outProduct string, outVersion string, outUrl string, outInterfaces []string, err Error)
 
 	// Get the description of an interface that is implemented by this service.
-	GetInterfaceDescription(ctx context.Context, interface_ string) (description string, err_ Error)
+	GetInterfaceDescription(ctx context.Context, inInterface string) (outDescription string, err Error)
 }
 
 // NewHandler creates a new method handler for the specified service implementation.

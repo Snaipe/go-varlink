@@ -94,7 +94,7 @@ func (input *{{ pascalCase $method.Name }}Input) Validate(param string) Error {
 }
 {{ end }}
 
-{{ with trim (include "args" .Input) }}
+{{ with trim (include "args" .Input "") }}
 // Pack fills in the fields of {{ pascalCase $method.Name }}Input from a
 // parameter list.
 func (input_ *{{ pascalCase $method.Name }}Input) Pack({{ . }}) {
@@ -131,7 +131,7 @@ func (output *{{ pascalCase $method.Name }}Output) Validate(param string) Error 
 }
 {{ end }}
 
-{{ with trim (include "args" .Output) }}
+{{ with trim (include "args" .Output "") }}
 // Pack fills in the fields of {{ pascalCase $method.Name }}Output from a
 // parameter list.
 func (output_ *{{ pascalCase $method.Name }}Output) Pack({{ . }}) {
@@ -169,7 +169,7 @@ func ({{ pascalCase .Name }}Error) Error() string {
 	return `{{ range $i, $c := .Comments }}{{ if $i }} {{ end }}{{ $c.Value }}{{ end }}`
 }
 
-func {{ pascalCase .Name }}({{ include "args" .Params }}) {{ pascalCase .Name }}Error {
+func {{ pascalCase .Name }}({{ include "args" .Params "" }}) {{ pascalCase .Name }}Error {
 	var err_ {{ .Name }}Error
 	{{- with struct .Params -}}
 	{{- range $i, $f := .Fields }}
@@ -200,17 +200,17 @@ func ErrorFromCode(code string, params json.RawMessage) Error {
 	switch code {
 	{{- range .Interface.Errors }}
 	case `{{ $.Interface.Name }}.{{ .Name }}`:
-		var err_ {{ .Name }}Error
-		if err2_ := json.Unmarshal([]byte(params), &err_); err2_ != nil {
-			panic(`programming error: {{ $.Interface.Name }}.{{ .Name }} params is invalid json: ` + err2_.Error())
+		var err {{ .Name }}Error
+		if err2 := json.Unmarshal([]byte(params), &err); err2 != nil {
+			panic(`programming error: {{ $.Interface.Name }}.{{ .Name }} params is invalid json: ` + err2.Error())
 		}
-		return err_
+		return err
 	{{ end -}}
 	default:
 		var kvargs []any
 		var pmap map[string]any
-		if err2_ := json.Unmarshal([]byte(params), &pmap); err2_ != nil {
-			panic(`programming error: ` + code + ` params is invalid json: ` + err2_.Error())
+		if err2 := json.Unmarshal([]byte(params), &pmap); err2 != nil {
+			panic(`programming error: ` + code + ` params is invalid json: ` + err2.Error())
 		}
 		for k, v := range pmap {
 			kvargs = append(kvargs, k, v)
@@ -220,47 +220,47 @@ func ErrorFromCode(code string, params json.RawMessage) Error {
 }
 
 {{ range .Interface.Methods -}}
-{{ $inputargs := trim (include "args" .Input) }}
-{{ $outputargs := trim (include "args" .Output) }}
+{{ $inputargs := trim (include "args" .Input "in_") }}
+{{ $outputargs := trim (include "args" .Output "out_") }}
 {{ include "comments" . -}}
-func (client_ *Client) {{ pascalCase .Name }}(ctx context.Context, {{ $inputargs }}) ({{ with $outputargs }}{{ . }}, {{ end }}err_ error) {
+func (client *Client) {{ pascalCase .Name }}(ctx context.Context, {{ $inputargs }}) ({{ with $outputargs }}{{ . }}, {{ end }}err error) {
 	var (
-		input_ {{ pascalCase .Name }}Input
-		output_ {{ pascalCase .Name }}Output
+		input {{ pascalCase .Name }}Input
+		output {{ pascalCase .Name }}Output
 	)
 	{{ if $inputargs }}
-	input_.Pack({{ include "callargs" .Input }})
+	input.Pack({{ include "callargs" .Input "in_" }})
 	{{ end }}
 
-	rs, err := client_.Call(ctx, `{{ $.Interface.Name }}.{{ .Name }}`, &input_)
-	if err != nil {
-		err_ = err
+	rs, err2 := client.Call(ctx, `{{ $.Interface.Name }}.{{ .Name }}`, &input)
+	if err2 != nil {
+		err = err2
 		return
 	}
 
 	for rs.Next() {
 		r := rs.Reply()
 		if r.Error != "" {
-			err_ = ErrorFromCode(r.Error, r.Parameters)
+			err = ErrorFromCode(r.Error, r.Parameters)
 			return
 		}
 		if r.Continues {
-			err_ = fmt.Errorf("more than one reply on single-reply call")
+			err = fmt.Errorf("more than one reply on single-reply call")
 			return
 		}
 
-		if err := rs.Unmarshal(&output_); err != nil {
-			err_ = err
+		if err2 := rs.Unmarshal(&output); err2 != nil {
+			err = err2
 			return
 		}
 	}
-	if err := rs.Error(); err != nil {
-		err_ = err
+	if err2 := rs.Error(); err2 != nil {
+		err = err2
 		return
 	}
 
 	{{ if $outputargs }}
-	{{ include "callargs" .Output }} = output_.Unpack()
+	{{ include "callargs" .Output "out_" }} = output.Unpack()
 	{{ end -}}
 	return
 }
@@ -272,10 +272,10 @@ func (client_ *Client) {{ pascalCase .Name }}(ctx context.Context, {{ $inputargs
 // varlink interface must adhere to.
 type Service interface {
 	{{ range .Interface.Methods -}}
-	{{- $inputargs := trim (include "args" .Input) -}}
-	{{- $outputargs := trim (include "args" .Output) -}}
+	{{- $inputargs := trim (include "args" .Input "in_") -}}
+	{{- $outputargs := trim (include "args" .Output "out_") -}}
 	{{ include "comments" . -}}
-	{{ pascalCase .Name }}(ctx context.Context, {{ $inputargs }}) ({{ with $outputargs }}{{ . }}, {{ end }}err_ Error)
+	{{ pascalCase .Name }}(ctx context.Context, {{ $inputargs }}) ({{ with $outputargs }}{{ . }}, {{ end }}err Error)
 	{{ end }}
 }
 
@@ -290,7 +290,7 @@ func NewHandler(s Service) varlink.MethodHandler {
 // service implementation into the passed ServeMux.
 func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 	{{ range .Interface.Methods -}}
-	{{- $outputargs := trim (include "args" .Output) -}}
+	{{- $outputargs := trim (include "args" .Output "out_") -}}
 	mux.HandleFunc("{{ $.Interface.Name }}.{{ .Name }}", func(w varlink.ReplyWriter, call *varlink.Call) {
 		var (
 			input {{ pascalCase .Name }}Input

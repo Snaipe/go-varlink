@@ -18,6 +18,8 @@ var _ = fmt.Errorf
 var _ = json.RawMessage(nil)
 var _ = context.Background
 
+type Error = varlink.Error
+
 // InterfaceName is the fully-qualified name of this varlink interface.
 const InterfaceName = `org.example.encoding`
 
@@ -115,7 +117,7 @@ type GetOrderOutput struct {
 	Order Order `json:"order"`
 }
 
-func (output *GetOrderOutput) Validate(param string) varlink.Error {
+func (output *GetOrderOutput) Validate(param string) Error {
 	if v, ok := any(output.Order).(interface{ Validate() varlink.Error }); ok {
 		if err := v.Validate(); err != nil {
 			return err
@@ -145,13 +147,13 @@ type Client struct {
 
 // ErrorFromCode returns a new varlink error constructed from the specified
 // code and parameters.
-func ErrorFromCode(code string, params json.RawMessage) varlink.Error {
+func ErrorFromCode(code string, params json.RawMessage) Error {
 	switch code {
 	default:
 		var kvargs []any
 		var pmap map[string]any
-		if err2_ := json.Unmarshal([]byte(params), &pmap); err2_ != nil {
-			panic(`programming error: ` + code + ` params is invalid json: ` + err2_.Error())
+		if err2 := json.Unmarshal([]byte(params), &pmap); err2 != nil {
+			panic(`programming error: ` + code + ` params is invalid json: ` + err2.Error())
 		}
 		for k, v := range pmap {
 			kvargs = append(kvargs, k, v)
@@ -161,82 +163,82 @@ func ErrorFromCode(code string, params json.RawMessage) varlink.Error {
 }
 
 // Returns the same string
-func (client_ *Client) Ping(ctx context.Context, ping string) (pong string, err_ error) {
+func (client *Client) Ping(ctx context.Context, inPing string) (outPong string, err error) {
 	var (
-		input_  PingInput
-		output_ PingOutput
+		input  PingInput
+		output PingOutput
 	)
 
-	input_.Pack(ping)
+	input.Pack(inPing)
 
-	rs, err := client_.Call(ctx, `org.example.encoding.Ping`, &input_)
-	if err != nil {
-		err_ = err
+	rs, err2 := client.Call(ctx, `org.example.encoding.Ping`, &input)
+	if err2 != nil {
+		err = err2
 		return
 	}
 
 	for rs.Next() {
 		r := rs.Reply()
 		if r.Error != "" {
-			err_ = ErrorFromCode(r.Error, r.Parameters)
+			err = ErrorFromCode(r.Error, r.Parameters)
 			return
 		}
 		if r.Continues {
-			err_ = fmt.Errorf("more than one reply on single-reply call")
+			err = fmt.Errorf("more than one reply on single-reply call")
 			return
 		}
 
-		if err := rs.Unmarshal(&output_); err != nil {
-			err_ = err
+		if err2 := rs.Unmarshal(&output); err2 != nil {
+			err = err2
 			return
 		}
 	}
-	if err := rs.Error(); err != nil {
-		err_ = err
+	if err2 := rs.Error(); err2 != nil {
+		err = err2
 		return
 	}
 
-	pong = output_.Unpack()
+	outPong = output.Unpack()
 	return
 }
 
 // Returns a fake order given an order number
-func (client_ *Client) GetOrder(ctx context.Context, num int) (order Order, err_ error) {
+func (client *Client) GetOrder(ctx context.Context, inNum int) (outOrder Order, err error) {
 	var (
-		input_  GetOrderInput
-		output_ GetOrderOutput
+		input  GetOrderInput
+		output GetOrderOutput
 	)
 
-	input_.Pack(num)
+	input.Pack(inNum)
 
-	rs, err := client_.Call(ctx, `org.example.encoding.GetOrder`, &input_)
-	if err != nil {
-		err_ = err
+	rs, err2 := client.Call(ctx, `org.example.encoding.GetOrder`, &input)
+	if err2 != nil {
+		err = err2
 		return
 	}
 
 	for rs.Next() {
 		r := rs.Reply()
 		if r.Error != "" {
-			err_ = ErrorFromCode(r.Error, r.Parameters)
+			err = ErrorFromCode(r.Error, r.Parameters)
 			return
 		}
 		if r.Continues {
-			err_ = fmt.Errorf("more than one reply on single-reply call")
+			err = fmt.Errorf("more than one reply on single-reply call")
 			return
 		}
 
-		if err := rs.Unmarshal(&output_); err != nil {
-			err_ = err
+		if err2 := rs.Unmarshal(&output); err2 != nil {
+			err = err2
 			return
 		}
 	}
-	if err := rs.Error(); err != nil {
-		err_ = err
+	if err2 := rs.Error(); err2 != nil {
+		err = err2
 		return
 	}
 
-	order = output_.Unpack()
+	outOrder = output.Unpack()
 	return
 }
 
@@ -245,10 +247,10 @@ func (client_ *Client) GetOrder(ctx context.Context, num int) (order Order, err_
 type Service interface {
 
 	// Returns the same string
-	Ping(ctx context.Context, ping string) (pong string, err_ varlink.Error)
+	Ping(ctx context.Context, inPing string) (outPong string, err Error)
 
 	// Returns a fake order given an order number
-	GetOrder(ctx context.Context, num int) (order Order, err_ varlink.Error)
+	GetOrder(ctx context.Context, inNum int) (outOrder Order, err Error)
 }
 
 // NewHandler creates a new method handler for the specified service implementation.
@@ -281,7 +283,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		var err varlink.Error
+		var err Error
 		output.Pong, err = s.Ping(w.Context(), input.Ping)
 		if err != nil {
 			w.WriteError(err)
@@ -310,7 +312,7 @@ func RegisterHandlers(mux *varlink.ServeMux, s Service) {
 			return
 		}
 
-		var err varlink.Error
+		var err Error
 		output.Order, err = s.GetOrder(w.Context(), input.Num)
 		if err != nil {
 			w.WriteError(err)
