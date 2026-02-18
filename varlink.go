@@ -54,6 +54,9 @@ type Call struct {
 }
 
 func decode(data []byte, v any) Error {
+	if data == nil {
+		return nil
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {

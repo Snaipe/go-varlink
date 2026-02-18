@@ -39,6 +39,11 @@ type Transport struct {
 	// The default is 1.
 	MaxKeepAliveSessions int
 
+	// Dial is the function that is used when dialing URIs.
+	//
+	// If nil, varlink.Dial is used.
+	Dial func(ctx context.Context, uri string) (*Session, error)
+
 	// SessionServeContext, if set, is called whenever a new session is created
 	// for the specified URI, and returns the context that will be associated
 	// with call handling on that session.
@@ -107,7 +112,12 @@ func (ts *Transport) takeSession(ctx context.Context, uri URI) (*Session, error)
 	default:
 	}
 
-	session, err := Dial(ctx, uri.String())
+	dial := ts.Dial
+	if dial == nil {
+		dial = Dial
+	}
+
+	session, err := dial(ctx, uri.String())
 	if err != nil {
 		return nil, err
 	}

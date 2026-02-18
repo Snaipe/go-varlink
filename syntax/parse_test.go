@@ -14,13 +14,16 @@ import (
 
 	"snai.pe/go-varlink/syntax"
 	stdtest1 "snai.pe/go-varlink/syntax/testdata/standard/org.example.encoding"
+	stdtest2 "snai.pe/go-varlink/syntax/testdata/standard/org.varlink.certification"
 )
 
 //go:generate go run snai.pe/go-varlink/cmd/codegen -output=testdata/standard/org.example.encoding/gen.go testdata/standard/org.example.encoding.varlink
+//go:generate go run snai.pe/go-varlink/cmd/codegen -output=testdata/standard/org.varlink.certification/gen.go testdata/standard/org.varlink.certification.varlink
 
 func TestVarlinkStandardSuite(t *testing.T) {
 	interfaces := map[string]syntax.InterfaceDef{
-		"org.example.encoding": stdtest1.Definition,
+		"org.example.encoding":      stdtest1.Definition,
+		"org.varlink.certification": stdtest2.Definition,
 	}
 
 	filepath.Walk("testdata/standard", func(path string, info os.FileInfo, err error) error {
